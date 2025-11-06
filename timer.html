@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自動シーケンスタイマー</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #f4f1ee;
+    color: #333;
+    text-align: center;
+    margin: 0;
+    padding: 2em;
+  }
+  h1 {
+    color: #5b4636;
+  }
+  input, button {
+    font-size: 1em;
+    margin: 0.3em;
+    padding: 0.4em 0.8em;
+  }
+  #timers {
+    margin-top: 2em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1em;
+  }
+  .timer {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 1em 2em;
+    width: 80%;
+    max-width: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+  }
+  .timer-number {
+    font-size: 2em;
+    font-weight: bold;
+    color: #5b4636;
+    margin-right: 1em;
+    transition: font-size 0.3s;
+  }
+  .timer.active {
+    background: #d1c0a8;
+  }
+  .timer.active .timer-number {
+    font-size: 3.5em;
+  }
+  .time {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #222;
+    transition: font-size 0.3s, padding 0.3s;
+  }
+  .timer.active .time {
+    font-size: 5em;
+  }
+  .label {
+    font-size: 1.2em;
+    margin-left: 1em;
+    color: #555;
+    transition: font-size 0.3s;
+  }
+  .timer.active .label {
+    font-size: 1.8em;
+  }
+</style>
+</head>
+<body>
+<h1>⏱️ 自動シーケンスタイマー</h1>
+<div>
+  <input type="number" id="minutes" placeholder="分" min="0" style="width:5em;">
+  <input type="number" id="seconds" placeholder="秒" min="0" max="59" style="width:5em;">
+  <input type="text" id="label" placeholder="ラベル (任意)" style="width:10em;">
+  <button onclick="addTimer()">追加</button>
+  <button onclick="startSequence()">スタート</button>
+  <button onclick="resetSequence()">リセット</button>
+  <button onclick="loadSample()">サンプル読み込み</button>
+</div>
+<div id="timers"></div>
+<script>
+let timers = [];
+let current = 0;
+let running = false;
+let interval;
+let timerCount = 0;
+
+function addTimer() {
+  const min = parseInt(document.getElementById('minutes').value) || 0;
+  const sec = parseInt(document.getElementById('seconds').value) || 0;
+  const label = document.getElementById('label').value || '';
+  const total = min * 60 + sec;
+  if (total <= 0) return;
+  timerCount++;
+  const id = Date.now();
+  const timer = { id, total, remaining: total, label, number: timerCount };
+  timers.push(timer);
+  renderTimers();
+}
+
+function renderTimers() {
+  const container = document.getElementById('timers');
+  container.innerHTML = '';
+  timers.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.className = 'timer';
+    if (i === current && running) div.classList.add('active');
+
+    const num = document.createElement('div');
+    num.className = 'timer-number';
+    num.textContent = t.number;
+
+    const time = document.createElement('div');
+    time.className = 'time';
+    time.textContent = formatTime(t.remaining);
+
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = t.label;
+
+    div.appendChild(num);
+    div.appendChild(time);
+    div.appendChild(label);
+    container.appendChild(div);
+  });
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60).toString().padStart(2, '0');
+  const s = (sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function playBeep() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(880, ctx.currentTime);
+  gain.gain.setValueAtTime(0.2, ctx.currentTime);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 1);
+}
+
+function startSequence() {
+  if (running || timers.length === 0) return;
+  running = true;
+  nextTimer();
+}
+
+function nextTimer() {
+  if (current >= timers.length) {
+    running = false;
+    return;
+  }
+  const t = timers[current];
+  scrollToActive();
+  interval = setInterval(() => {
+    if (!running) return;
+    t.remaining--;
+    renderTimers();
+    scrollToActive();
+    if (t.remaining <= 0) {
+      clearInterval(interval);
+      playBeep();
+      timers = timers.filter((_, i) => i !== current);
+      nextTimer();
+    }
+  }, 1000);
+}
+
+function scrollToActive() {
+  const container = document.getElementById('timers');
+  const active = container.querySelector('.active');
+  if (active) container.prepend(active);
+}
+
+function resetSequence() {
+  clearInterval(interval);
+  running = false;
+  current = 0;
+  timerCount = 0;
+  timers.forEach((t, i) => {
+    t.remaining = t.total;
+    t.number = i + 1;
+  });
+  renderTimers();
+}
+
+function loadSample() {
+  timers = [];
+  timerCount = 0;
+  const sample = [
+    {min:2,sec:0,label:'準備'},
+    {min:3,sec:0,label:'発表'},
+    {min:1,sec:0,label:'質疑'},
+    {min:2,sec:0,label:'まとめ'}
+  ];
+  sample.forEach(s => {
+    timerCount++;
+    timers.push({id:Date.now()+timerCount,total:s.min*60+s.sec,remaining:s.min*60+s.sec,label:s.label,number:timerCount});
+  });
+  renderTimers();
+}
+</script>
+</body>
+</html>
