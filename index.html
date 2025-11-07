@@ -82,9 +82,9 @@
   <button onclick="addTimer()">追加</button>
   <button onclick="startSequence()">スタート</button>
   <button onclick="resetSequence()">リセット</button>
-  <button onclick="loadSample()">サンプル読み込み</button>
 </div>
 <div id="timers"></div>
+
 <script>
 let timers = [];
 let current = 0;
@@ -153,6 +153,7 @@ function playBeep() {
 function startSequence() {
   if (running || timers.length === 0) return;
   running = true;
+  current = 0;
   nextTimer();
 }
 
@@ -161,13 +162,17 @@ function nextTimer() {
     running = false;
     return;
   }
+
   const t = timers[current];
+  renderTimers();
   scrollToActive();
+
   interval = setInterval(() => {
     if (!running) return;
     t.remaining--;
     renderTimers();
     scrollToActive();
+
     if (t.remaining <= 0) {
       clearInterval(interval);
       playBeep();
@@ -188,29 +193,9 @@ function resetSequence() {
   running = false;
   current = 0;
   timerCount = 0;
-  timers.forEach((t, i) => {
-    t.remaining = t.total;
-    t.number = i + 1;
-  });
-  renderTimers();
-}
-
-function loadSample() {
-  timers = [];
-  timerCount = 0;
-  const sample = [
-    {min:2,sec:0,label:'準備'},
-    {min:3,sec:0,label:'発表'},
-    {min:1,sec:0,label:'質疑'},
-    {min:2,sec:0,label:'まとめ'}
-  ];
-  sample.forEach(s => {
-    timerCount++;
-    timers.push({id:Date.now()+timerCount,total:s.min*60+s.sec,remaining:s.min*60+s.sec,label:s.label,number:timerCount});
-  });
+  timers = []; // ← 全削除
   renderTimers();
 }
 </script>
 </body>
 </html>
-
