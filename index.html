@@ -176,6 +176,7 @@ function toggleStartPause() {
     running = true;
     paused = false;
     btn.textContent = "⏸ 一時停止";
+    current = 0; // ← 最初からスタート
     nextTimer();
   } else if (!paused) {
     paused = true;
@@ -208,7 +209,9 @@ function nextTimer() {
     if (t.remaining <= 0) {
       clearInterval(interval);
       playBeep();
-      current++;
+      // タイムアップしたタイマーを削除
+      timers.splice(current, 1);
+      // 次へ（同じindex位置に次の要素が来る）
       nextTimer();
     }
   }, 1000);
@@ -225,7 +228,7 @@ function continueTimer() {
     if (t.remaining <= 0) {
       clearInterval(interval);
       playBeep();
-      current++;
+      timers.splice(current, 1);
       nextTimer();
     }
   }, 1000);
