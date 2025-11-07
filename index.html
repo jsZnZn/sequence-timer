@@ -20,7 +20,26 @@
     font-size: 1em;
     margin: 0.3em;
     padding: 0.4em 0.8em;
+    border: none;
+    border-radius: 6px;
   }
+  button {
+    background: #e0d6ca;
+    color: #333;
+    transition: background 0.3s;
+  }
+  button:hover {
+    background: #d1c0a8;
+  }
+  /* スタート・一時停止ボタン専用の色 */
+  #startBtn {
+    background: #bda27e;
+    color: #fff;
+  }
+  #startBtn:hover {
+    background: #a48c6b;
+  }
+
   #timers {
     margin-top: 2em;
     display: flex;
@@ -80,7 +99,7 @@
   <input type="number" id="seconds" placeholder="秒" min="0" max="59" style="width:5em;">
   <input type="text" id="label" placeholder="ラベル (任意)" style="width:10em;">
   <button onclick="addTimer()">追加</button>
-  <button onclick="startSequence()">スタート</button>
+  <button id="startBtn" onclick="toggleStartPause()">スタート</button>
   <button onclick="resetSequence()">リセット</button>
 </div>
 <div id="timers"></div>
@@ -89,6 +108,7 @@
 let timers = [];
 let current = 0;
 let running = false;
+let paused = false;
 let interval;
 let timerCount = 0;
 
@@ -111,7 +131,7 @@ function renderTimers() {
   timers.forEach((t, i) => {
     const div = document.createElement('div');
     div.className = 'timer';
-    if (i === current && running) div.classList.add('active');
+    if (i === current && running && !paused) div.classList.add('active');
 
     const num = document.createElement('div');
     num.className = 'timer-number';
@@ -150,16 +170,28 @@ function playBeep() {
   osc.stop(ctx.currentTime + 1);
 }
 
-function startSequence() {
-  if (running || timers.length === 0) return;
-  running = true;
-  current = 0;
-  nextTimer();
+function toggleStartPause() {
+  const btn = document.getElementById('startBtn');
+  if (!running) {
+    running = true;
+    paused = false;
+    btn.textContent = "⏸ 一時停止";
+    nextTimer();
+  } else if (!paused) {
+    paused = true;
+    clearInterval(interval);
+    btn.textContent = "▶️ 再開";
+  } else {
+    paused = false;
+    btn.textContent = "⏸ 一時停止";
+    continueTimer();
+  }
 }
 
 function nextTimer() {
   if (current >= timers.length) {
     running = false;
+    document.getElementById('startBtn').textContent = "スタート";
     return;
   }
 
@@ -168,7 +200,7 @@ function nextTimer() {
   scrollToActive();
 
   interval = setInterval(() => {
-    if (!running) return;
+    if (!running || paused) return;
     t.remaining--;
     renderTimers();
     scrollToActive();
@@ -176,7 +208,24 @@ function nextTimer() {
     if (t.remaining <= 0) {
       clearInterval(interval);
       playBeep();
-      timers = timers.filter((_, i) => i !== current);
+      current++;
+      nextTimer();
+    }
+  }, 1000);
+}
+
+function continueTimer() {
+  const t = timers[current];
+  interval = setInterval(() => {
+    if (!running || paused) return;
+    t.remaining--;
+    renderTimers();
+    scrollToActive();
+
+    if (t.remaining <= 0) {
+      clearInterval(interval);
+      playBeep();
+      current++;
       nextTimer();
     }
   }, 1000);
@@ -191,9 +240,11 @@ function scrollToActive() {
 function resetSequence() {
   clearInterval(interval);
   running = false;
+  paused = false;
   current = 0;
   timerCount = 0;
-  timers = []; // ← 全削除
+  timers = [];
+  document.getElementById('startBtn').textContent = "スタート";
   renderTimers();
 }
 </script>
