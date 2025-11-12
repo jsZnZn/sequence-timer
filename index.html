@@ -13,10 +13,21 @@
     margin: 0;
     padding: 2em;
   }
-  h1 { color: #5b4636; }
+  h1 {
+    color: #5b4636;
+  }
+  .input-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.3em;
+    margin-bottom: 1em;
+  }
+  .input-group label {
+    align-self: center;
+  }
   input, button {
     font-size: 1em;
-    margin: 0.3em;
     padding: 0.4em 0.8em;
     border: none;
     border-radius: 6px;
@@ -26,15 +37,45 @@
     color: #333;
     transition: background 0.3s;
   }
-  button:hover { background: #d1c0a8; }
+  button:hover {
+    background: #d1c0a8;
+  }
   #startBtn {
     background: #bda27e;
     color: #fff;
   }
-  #startBtn:hover { background: #a48c6b; }
+  #startBtn:hover {
+    background: #a48c6b;
+  }
+
+  #totalWrapper {
+    margin-top: 1em;
+    margin-bottom: 1em;
+  }
+  #totalTime {
+    font-size: 1.4em;
+    color: #5b4636;
+    font-weight: bold;
+    margin-bottom: 0.5em;
+  }
+  .progress-bar {
+    height: 10px;
+    width: 80%;
+    max-width: 500px;
+    background: #e0d6ca;
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 0.3em auto;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 100%;
+    background: #bda27e;
+    transition: width 0.1s linear;
+  }
 
   #timers {
-    margin-top: 2em;
+    margin-top: 1em;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -48,18 +89,10 @@
     width: 80%;
     max-width: 500px;
     display: flex;
-    flex-direction: column;
-    gap: 0.5em;
-    transition: transform 0.3s ease, background 0.3s ease;
-  }
-  .timer.active {
-    background: #d1c0a8;
-    transform: scale(1.05);
-  }
-  .timer-header {
-    display: flex;
     align-items: center;
     justify-content: space-between;
+    transition: all 0.3s ease;
+    flex-wrap: wrap;
   }
   .timer-number {
     font-size: 2em;
@@ -68,72 +101,56 @@
     margin-right: 1em;
     transition: font-size 0.3s;
   }
-  .timer.active .timer-number { font-size: 2.5em; }
+  .timer.active {
+    background: #d1c0a8;
+  }
+  .timer.active .timer-number {
+    font-size: 3.5em;
+  }
   .time {
     font-size: 2.5em;
     font-weight: bold;
     color: #222;
-    transition: font-size 0.3s;
+    transition: font-size 0.3s, padding 0.3s;
   }
-  .timer.active .time { font-size: 3.5em; }
+  .timer.active .time {
+    font-size: 5em;
+  }
   .label {
     font-size: 1.2em;
     color: #555;
+    margin-left: 0.5em;
+    width: 100%;
     text-align: left;
     transition: font-size 0.3s;
   }
-  .timer.active .label { font-size: 1.5em; }
-  .bar {
+  .timer.active .label {
+    font-size: 1.8em;
+  }
+  .timer-bar {
+    height: 10px;
     width: 100%;
-    height: 12px;
     background: #e0d6ca;
     border-radius: 6px;
     overflow: hidden;
+    margin-top: 0.3em;
   }
-  .bar-fill {
+  .timer-fill {
     height: 100%;
-    background: #bda27e;
     width: 100%;
-    transition: width 0.2s linear;
+    background: #bda27e;
+    transition: width 0.1s linear;
   }
   .delete-btn {
     background: #f0b7a4;
     color: #fff;
+    border: none;
     border-radius: 6px;
     padding: 0.3em 0.6em;
     cursor: pointer;
+    margin-left: 0.5em;
   }
   .delete-btn:hover { background: #e38b71; }
-
-  #totalWrapper {
-    margin-top: 1em;
-    margin-bottom: 1em;
-  }
-  #totalTime { font-size: 1.2em; font-weight: bold; color: #5b4636; margin-bottom: 0.3em; }
-  #totalBarWrapper {
-    width: 80%;
-    max-width: 500px;
-    height: 12px;
-    background: #e0d6ca;
-    border-radius: 6px;
-    margin: 0 auto;
-    overflow: hidden;
-  }
-  #totalBar {
-    height: 100%;
-    background: #bda27e;
-    width: 100%;
-    transition: width 0.2s linear;
-  }
-
-  .input-group {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5em;
-    margin-top: 1em;
-  }
-  .input-group label { font-weight: bold; margin-right: 0.3em; }
 </style>
 </head>
 <body>
@@ -152,7 +169,7 @@
 
 <div id="totalWrapper">
   <div id="totalTime">合計時間：00:00</div>
-  <div id="totalBarWrapper"><div id="totalBar"></div></div>
+  <div class="progress-bar"><div id="totalProgress" class="progress-fill"></div></div>
 </div>
 
 <div id="timers"></div>
@@ -162,169 +179,207 @@ let timers = [];
 let current = 0;
 let running = false;
 let paused = false;
-let timerCount = 0;
 let interval;
+let timerCount = 0;
 let totalInitial = 0;
-
-function formatTime(sec) {
-  const m = Math.floor(sec / 60).toString().padStart(2,'0');
-  const s = Math.floor(sec % 60).toString().padStart(2,'0');
-  return `${m}:${s}`;
-}
-
-function initAudio() {
-  if(!window.audioCtx) window.audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-}
-
-function playBeep() {
-  initAudio();
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type='square';
-  osc.frequency.setValueAtTime(880,audioCtx.currentTime);
-  gain.gain.setValueAtTime(0.2,audioCtx.currentTime);
-  osc.connect(gain).connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime+0.5);
-}
+let totalRemaining = 0;
 
 function addTimer() {
-  const min = parseInt(document.getElementById('minutes').value)||0;
-  const sec = parseInt(document.getElementById('seconds').value)||0;
-  const startNum = parseInt(document.getElementById('startNumber').value)||1;
-  const label = document.getElementById('label').value||'';
-  const total = min*60 + sec;
-  if(total <=0) return;
-
-  const number = startNum + timerCount;
-  const id = Date.now();
-  timers.push({id, total, remaining: total, label, number});
+  const min = parseInt(document.getElementById('minutes').value) || 0;
+  const sec = parseInt(document.getElementById('seconds').value) || 0;
+  const label = document.getElementById('label').value || '';
+  const startNum = parseInt(document.getElementById('startNumber').value) || 1;
+  const total = min * 60 + sec;
+  if (total <= 0) return;
   timerCount++;
-
-  // 合計時間初期値
-  totalInitial = timers.reduce((sum,t)=>sum+t.remaining,0);
+  const id = Date.now();
+  const timer = { id, total, remaining: total, label, number: startNum + timers.length };
+  timers.push(timer);
+  updateTotalTime(true);
   renderTimers();
-  updateTotalTime();
 }
 
 function renderTimers() {
   const container = document.getElementById('timers');
-  container.innerHTML='';
-  timers.forEach((t,i)=>{
+  container.innerHTML = '';
+  timers.forEach((t, i) => {
     const div = document.createElement('div');
-    div.className='timer';
-    if(i===0) div.classList.add('active');
+    div.className = 'timer';
+    if (i === current && running && !paused) div.classList.add('active');
 
-    const header = document.createElement('div');
-    header.className='timer-header';
+    const num = document.createElement('div');
+    num.className = 'timer-number';
+    num.textContent = t.number;
 
-    const num = document.createElement('div'); num.className='timer-number'; num.textContent=t.number;
-    const time = document.createElement('div'); time.className='time'; time.textContent=formatTime(t.remaining);
+    const time = document.createElement('div');
+    time.className = 'time';
+    time.textContent = formatTime(t.remaining);
 
-    header.appendChild(num);
-    header.appendChild(time);
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = t.label;
 
-    if(!running || paused){
-      const del = document.createElement('button');
-      del.className='delete-btn';
-      del.textContent='削除';
-      del.onclick = ()=>deleteTimer(t.id);
-      header.appendChild(del);
-    }
+    const del = document.createElement('button');
+    del.textContent = "❌";
+    del.className = "delete-btn";
+    del.onclick = () => deleteTimer(t.id);
 
-    const labelDiv = document.createElement('div');
-    labelDiv.className='label';
-    labelDiv.textContent=t.label;
+    div.appendChild(num);
+    div.appendChild(time);
+    div.appendChild(label);
+    if (!running || paused) div.appendChild(del);
 
     const bar = document.createElement('div');
-    bar.className='bar';
+    bar.className = 'timer-bar';
     const fill = document.createElement('div');
-    fill.className='bar-fill';
-    fill.style.width = (t.remaining/t.total*100)+'%';
+    fill.className = 'timer-fill';
+    fill.style.width = (t.remaining / t.total * 100) + '%';
     bar.appendChild(fill);
-
-    div.appendChild(header);
-    div.appendChild(labelDiv);
     div.appendChild(bar);
 
-    container.appendChild(div);
-
-    // 保存しておく
-    t.timeElement = time;
     t.fillElement = fill;
+    t.timeElement = time;
+
+    container.appendChild(div);
   });
 }
 
-function updateTotalTime() {
-  const totalSec = timers.reduce((sum,t)=>sum+t.remaining,0);
-  document.getElementById('totalTime').textContent="合計時間："+formatTime(totalSec);
-  const totalBar = document.getElementById('totalBar');
-  const progress = totalInitial? (totalSec/totalInitial*100) :0;
-  totalBar.style.width=progress+'%';
+function formatTime(sec) {
+  const m = Math.floor(sec / 60).toString().padStart(2, '0');
+  const s = (sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
 }
 
-function deleteTimer(id){
-  timers = timers.filter(t=>t.id!==id);
-  updateTotalTime();
-  renderTimers();
+function playBeep() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(880, ctx.currentTime);
+  gain.gain.setValueAtTime(0.2, ctx.currentTime);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.5);
 }
 
-function toggleStartPause(){
+function toggleStartPause() {
   const btn = document.getElementById('startBtn');
-  if(!running){
-    running=true; paused=false; current=0;
-    btn.textContent="⏸ 一時停止";
+  if (!running) {
+    running = true; paused = false;
+    btn.textContent = "⏸ 一時停止";
+    current = 0;
+    totalInitial = timers.reduce((s, t) => s + t.remaining, 0);
+    startTotalCountdown();
     nextTimer();
-  } else if(!paused){
-    paused=true;
+  } else if (!paused) {
+    paused = true;
     clearInterval(interval);
-    btn.textContent="▶️ 再開";
+    btn.textContent = "▶️ 再開";
   } else {
-    paused=false;
-    btn.textContent="⏸ 一時停止";
+    paused = false;
+    btn.textContent = "⏸ 一時停止";
     continueTimer();
   }
+  renderTimers();
 }
 
-function nextTimer(){
-  if(current>=timers.length){
-    running=false;
-    document.getElementById('startBtn').textContent="スタート";
-    updateTotalTime();
+function nextTimer() {
+  if (current >= timers.length) {
+    running = false;
+    document.getElementById('startBtn').textContent = "スタート";
     return;
   }
-  const t=timers[current];
+  const t = timers[current];
   renderTimers();
-  updateTotalTime();
-  let lastTime=Date.now();
-  interval=setInterval(()=>{
-    if(!running||paused) return;
-    const now=Date.now();
-    const delta=(now-lastTime)/1000;
-    lastTime=now;
-    t.remaining-=delta;
-    if(t.remaining<0) t.remaining=0;
-    renderTimers();
+  scrollToActive();
+  const start = Date.now();
+  const startRemaining = t.remaining;
+
+  function tick() {
+    if (!running || paused) return;
+    const elapsed = (Date.now() - start)/1000;
+    t.remaining = Math.max(0, startRemaining - elapsed);
+    t.timeElement.textContent = formatTime(t.remaining);
+    t.fillElement.style.width = (t.remaining / t.total * 100) + '%';
     updateTotalTime();
-    if(t.remaining<=0){
-      clearInterval(interval);
+    renderTimers();
+    if (t.remaining > 0) requestAnimationFrame(tick);
+    else {
       playBeep();
       timers.splice(current,1);
       nextTimer();
     }
-  },50);
+  }
+  requestAnimationFrame(tick);
 }
 
-function continueTimer(){
-  nextTimer();
+function continueTimer() {
+  const t = timers[current];
+  const start = Date.now();
+  const startRemaining = t.remaining;
+
+  function tick() {
+    if (!running || paused) return;
+    const elapsed = (Date.now() - start)/1000;
+    t.remaining = Math.max(0, startRemaining - elapsed);
+    t.timeElement.textContent = formatTime(t.remaining);
+    t.fillElement.style.width = (t.remaining / t.total * 100) + '%';
+    updateTotalTime();
+    renderTimers();
+    if (t.remaining > 0) requestAnimationFrame(tick);
+    else {
+      playBeep();
+      timers.splice(current,1);
+      nextTimer();
+    }
+  }
+  requestAnimationFrame(tick);
 }
 
-function resetSequence(){
-  clearInterval(interval);
-  running=false; paused=false; current=0; timerCount=0; timers=[];
-  document.getElementById('startBtn').textContent="スタート";
-  updateTotalTime();
+function scrollToActive() {
+  const container = document.getElementById('timers');
+  const active = container.querySelector('.active');
+  if (active) container.prepend(active);
+}
+
+function deleteTimer(id) {
+  timers = timers.filter(t => t.id !== id);
   renderTimers();
+  updateTotalTime();
+}
+
+function resetSequence() {
+  clearInterval(interval);
+  running = false;
+  paused = false;
+  current = 0;
+  timerCount = 0;
+  timers = [];
+  totalInitial = 0;
+  totalRemaining = 0;
+  document.getElementById('startBtn').textContent = "スタート";
+  updateTotalTime(true);
+  renderTimers();
+}
+
+function updateTotalTime(reset=false) {
+  totalRemaining = timers.reduce((s,t)=>s+t.remaining,0);
+  document.getElementById('totalTime').textContent = "合計時間：" + formatTime(totalRemaining);
+  const fill = document.getElementById('totalProgress');
+  if (reset) fill.style.width = "100%";
+  else if (totalInitial>0) fill.style.width = (totalRemaining/totalInitial*100)+'%';
+}
+
+function startTotalCountdown() {
+  totalInitial = timers.reduce((s, t) => s + t.remaining, 0);
+  function tick() {
+    if (!running || paused || totalRemaining <=0) return;
+    totalRemaining = timers.reduce((s,t)=>s+t.remaining,0);
+    const fill = document.getElementById('totalProgress');
+    fill.style.width = (totalRemaining/totalInitial*100)+'%';
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
 }
 </script>
 </body>
