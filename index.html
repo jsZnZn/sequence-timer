@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>自動シーケンスタイマー</title>
 <link rel="icon" href="favicon.png" type="image/png">
-
 <style>
   body {
     font-family: 'Segoe UI', sans-serif;
@@ -16,7 +15,7 @@
     padding: 2em;
   }
   h1 { color: #5b4636; }
-  input, button, select {
+  input, button {
     font-size: 1em;
     margin: 0.3em;
     padding: 0.4em 0.8em;
@@ -32,13 +31,6 @@
   #startBtn { background: #bda27e; color: #fff; }
   #startBtn:hover { background: #a48c6b; }
 
-  .start-number-wrapper {
-    display: inline-flex; align-items: center; gap: 0.3em;
-  }
-  .start-number-wrapper label {
-    font-size: 0.9em; color: #555;
-  }
-
   #timers {
     margin-top: 2em;
     display: flex; flex-direction: column; align-items: center; gap: 1em;
@@ -46,18 +38,19 @@
   .timer {
     background: #fff; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     padding: 1em 2em; width: 80%; max-width: 500px;
-    display: flex; flex-direction: column; transition: all 0.3s ease;
+    display: flex; flex-direction: column;
   }
   .timer-header {
     display: flex; align-items: center; justify-content: space-between;
   }
   .timer-number {
-    font-size: 1.2em; font-weight: bold; color: #5b4636; margin-right: 1em;
+    width: 4em;
+    font-weight: bold;
+    color: #5b4636;
+    text-align: center;
   }
-  .time {
-    font-size: 2.5em; font-weight: bold; color: #222;
-  }
-  .label { font-size: 1.2em; margin-left: 1em; color: #555; }
+  .time { font-size: 2.5em; font-weight: bold; color: #222; }
+  .label { font-size: 1.2em; color: #555; }
   .delete-btn {
     background: #f0b7a4; color: #fff; border: none;
     border-radius: 6px; padding: 0.3em 0.6em; cursor: pointer;
@@ -68,7 +61,6 @@
   #totalTime {
     font-size: 1.4em; color: #5b4636; font-weight: bold; margin-bottom: 0.5em;
   }
-
   .progress-bar {
     height: 10px; width: 100%; background: #e0d6ca;
     border-radius: 6px; overflow: hidden;
@@ -77,18 +69,31 @@
     height: 100%; background: #bda27e; width: 100%;
     border-radius: 6px; transition: width 0.1s linear;
   }
+
+  /* 現在タイマーを大きく表示 */
+  #activeTimer {
+    background: #fff4e0;
+    border-radius: 12px;
+    padding: 1em;
+    margin: 1em auto;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  }
+  #activeLabel { font-size: 1.4em; color: #5b4636; margin-bottom: 0.5em; }
+  #activeTime { font-size: 4em; color: #222; font-weight: bold; }
+  #activeBar { height: 14px; background: #e0d6ca; border-radius: 6px; overflow: hidden; }
+  #activeFill { height: 100%; width: 100%; background: #bda27e; transition: width 0.1s linear; }
 </style>
 </head>
 <body>
 <h1>⏱️ 自動シーケンスタイマー</h1>
+
 <div>
   <input type="number" id="minutes" placeholder="分" min="0" style="width:5em;">
   <input type="number" id="seconds" placeholder="秒" min="0" max="59" style="width:5em;">
   <input type="text" id="label" placeholder="ラベル (任意)" style="width:10em;">
-  <span class="start-number-wrapper">
-    <label for="startNumber">開始番号</label>
-    <input type="number" id="startNumber" min="1" value="1" style="width:5em;">
-  </span>
+  <input type="number" id="startNumber" min="1" value="1" style="width:5em;" placeholder="開始番号">
   <button onclick="addTimer()">追加</button>
   <button id="startBtn" onclick="toggleStartPause()">スタート</button>
   <button onclick="resetSequence()">リセット</button>
@@ -99,6 +104,13 @@
   <div class="progress-bar"><div id="totalProgress" class="progress-fill"></div></div>
 </div>
 
+<!-- 現在タイマーの特大表示 -->
+<div id="activeTimer" style="display:none;">
+  <div id="activeLabel"></div>
+  <div id="activeTime">00:00</div>
+  <div id="activeBar"><div id="activeFill"></div></div>
+</div>
+
 <div id="timers"></div>
 
 <script>
@@ -106,7 +118,6 @@ let timers = [];
 let current = 0;
 let running = false;
 let paused = false;
-let interval;
 let totalInterval;
 let startNumber = 1;
 let totalRemaining = 0;
@@ -126,45 +137,34 @@ function initAudio() {
 }
 
 function addTimer() {
-  const min = parseInt(document.getElementById('minutes').value) || 0;
-  const sec = parseInt(document.getElementById('seconds').value) || 0;
+  const min = +document.getElementById('minutes').value || 0;
+  const sec = +document.getElementById('seconds').value || 0;
   const label = document.getElementById('label').value || '';
-  startNumber = parseInt(document.getElementById('startNumber').value) || 1;
+  startNumber = +document.getElementById('startNumber').value || 1;
   const total = min * 60 + sec;
   if (total <= 0) return;
   const id = Date.now();
-  const timer = { id, total, remaining: total, label, number: startNumber + timers.length, fillElement: null };
-  timers.push(timer);
-  updateNumbers();
+  timers.push({ id, total, remaining: total, label, number: startNumber + timers.length });
   updateTotalTime(true);
   renderTimers();
-}
-
-function updateNumbers() {
-  timers.forEach((t, i) => t.number = startNumber + i);
 }
 
 function renderTimers() {
   const container = document.getElementById('timers');
   container.innerHTML = '';
-  timers.forEach((t) => {
+  timers.forEach(t => {
     const div = document.createElement('div');
     div.className = 'timer';
 
     const header = document.createElement('div');
     header.className = 'timer-header';
 
-    const numSelect = document.createElement('select');
-    numSelect.className = 'timer-number';
-    for (let n = startNumber; n < startNumber + timers.length; n++) {
-      const opt = document.createElement('option');
-      opt.value = n;
-      opt.textContent = n;
-      if (n === t.number) opt.selected = true;
-      numSelect.appendChild(opt);
-    }
-    // ✅ 並び替えしない
-    numSelect.onchange = (e) => { t.number = parseInt(e.target.value); };
+    const numInput = document.createElement('input');
+    numInput.type = 'number';
+    numInput.className = 'timer-number';
+    numInput.value = t.number;
+    numInput.disabled = running && !paused;
+    numInput.oninput = e => { t.number = +e.target.value; };
 
     const time = document.createElement('div');
     time.className = 'time';
@@ -177,39 +177,38 @@ function renderTimers() {
     const del = document.createElement('button');
     del.textContent = "❌";
     del.className = "delete-btn";
-    del.onclick = () => { deleteTimer(t.id); };
+    del.onclick = () => deleteTimer(t.id);
 
-    header.appendChild(numSelect);
-    header.appendChild(time);
-    header.appendChild(label);
-    header.appendChild(del);
-    div.appendChild(header);
+    header.append(numInput, time, label, del);
+    div.append(header);
 
     const bar = document.createElement('div');
     bar.className = 'progress-bar';
     const fill = document.createElement('div');
     fill.className = 'progress-fill';
     fill.style.width = (t.remaining / t.total * 100) + '%';
-    bar.appendChild(fill);
-    div.appendChild(bar);
+    bar.append(fill);
+    div.append(bar);
 
     t.fillElement = fill;
     t.timeElement = time;
 
-    container.appendChild(div);
+    container.append(div);
   });
 }
 
 function deleteTimer(id) {
+  const deletingIndex = timers.findIndex(t => t.id === id);
+  const deletingActive = (deletingIndex === current && running && !paused);
   timers = timers.filter(t => t.id !== id);
-  updateNumbers();
+  if (deletingActive) nextTimer(); // 現在のを削除したら即次へ
   updateTotalTime(true);
   renderTimers();
 }
 
 function formatTime(sec) {
   const m = Math.floor(sec / 60).toString().padStart(2, '0');
-  const s = (sec % 60).toString().padStart(2, '0');
+  const s = Math.floor(sec % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
 }
 
@@ -232,49 +231,55 @@ function toggleStartPause() {
     running = true; paused = false;
     btn.textContent = "⏸ 一時停止";
     current = 0;
-    totalInitial = timers.reduce((sum, t) => sum + t.remaining, 0);
+    totalInitial = timers.reduce((s, t) => s + t.remaining, 0);
     nextTimer();
     startTotalCountdown();
   } else if (!paused) {
     paused = true;
-    clearInterval(totalInterval);
     btn.textContent = "▶️ 再開";
   } else {
     paused = false;
     btn.textContent = "⏸ 一時停止";
-    startTotalCountdown();
+    nextTimer();
   }
+  renderTimers();
 }
 
 function nextTimer() {
   if (current >= timers.length) {
     running = false;
     document.getElementById('startBtn').textContent = "スタート";
-    clearInterval(totalInterval);
-    updateTotalTime(true);
+    document.getElementById('activeTimer').style.display = 'none';
     return;
   }
 
   const t = timers[current];
-  const startTime = Date.now();
-  const duration = t.remaining * 1000;
+  document.getElementById('activeTimer').style.display = 'block';
+  document.getElementById('activeLabel').textContent = `#${t.number} ${t.label}`;
+  const activeTime = document.getElementById('activeTime');
+  const activeFill = document.getElementById('activeFill');
+  activeFill.style.width = '100%';
+
+  const start = Date.now();
   const startRemaining = t.remaining;
+  const duration = t.remaining * 1000;
 
   function tick() {
     if (!running || paused) return;
-    const elapsed = (Date.now() - startTime) / 1000;
+    const elapsed = (Date.now() - start) / 1000;
     t.remaining = Math.max(0, startRemaining - elapsed);
-    t.timeElement.textContent = formatTime(Math.ceil(t.remaining));
-    if (t.fillElement) {
-      t.fillElement.style.width = (t.remaining / t.total * 100) + '%';
-    }
+    activeTime.textContent = formatTime(t.remaining);
+    activeFill.style.width = (t.remaining / t.total * 100) + '%';
+    t.timeElement.textContent = formatTime(t.remaining);
+    if (t.fillElement) t.fillElement.style.width = (t.remaining / t.total * 100) + '%';
     updateTotalTime();
     if (t.remaining > 0) {
       requestAnimationFrame(tick);
     } else {
       playBeep();
-      current++;
+      timers.splice(current, 1);
       nextTimer();
+      renderTimers();
     }
   }
   requestAnimationFrame(tick);
@@ -285,16 +290,16 @@ function resetSequence() {
   document.getElementById('startBtn').textContent = "スタート";
   document.getElementById('totalTime').textContent = "合計時間：00:00";
   document.getElementById('totalProgress').style.width = "100%";
+  document.getElementById('activeTimer').style.display = 'none';
   renderTimers();
 }
 
 function updateTotalTime(reset=false) {
-  totalRemaining = timers.reduce((sum, t) => sum + t.remaining, 0);
-  document.getElementById('totalTime').textContent = "合計時間：" + formatTime(Math.ceil(totalRemaining));
+  totalRemaining = timers.reduce((s, t) => s + t.remaining, 0);
+  document.getElementById('totalTime').textContent = "合計時間：" + formatTime(totalRemaining);
   const fill = document.getElementById('totalProgress');
   if (reset) fill.style.width = "100%";
-  else if (totalInitial > 0)
-    fill.style.width = (totalRemaining / totalInitial * 100) + '%';
+  else if (totalInitial > 0) fill.style.width = (totalRemaining / totalInitial * 100) + '%';
 }
 
 function startTotalCountdown() {
