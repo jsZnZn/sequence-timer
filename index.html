@@ -18,7 +18,7 @@
   h1 {
     color: #5b4636;
   }
-  input, button {
+  input, button, select {
     font-size: 1em;
     margin: 0.3em;
     padding: 0.4em 0.8em;
@@ -41,7 +41,6 @@
     background: #a48c6b;
   }
 
-  /* ① 開始番号をラベル付きで表示 */
   .start-number-wrapper {
     display: inline-flex;
     align-items: center;
@@ -76,17 +75,10 @@
     justify-content: space-between;
   }
   .timer-number {
-    font-size: 2em;
+    font-size: 1.2em;
     font-weight: bold;
     color: #5b4636;
     margin-right: 1em;
-    transition: font-size 0.3s;
-  }
-  .timer.active {
-    background: #d1c0a8;
-  }
-  .timer.active .timer-number {
-    font-size: 3em;
   }
   .time {
     font-size: 2.5em;
@@ -94,17 +86,10 @@
     color: #222;
     transition: font-size 0.3s;
   }
-  .timer.active .time {
-    font-size: 4.5em;
-  }
   .label {
     font-size: 1.2em;
     margin-left: 1em;
     color: #555;
-    transition: font-size 0.3s;
-  }
-  .timer.active .label {
-    font-size: 1.6em;
   }
   .delete-btn {
     background: #f0b7a4;
@@ -118,7 +103,6 @@
     background: #e38b71;
   }
 
-  /* ② 合計時間表示の位置とデザイン */
   #totalWrapper {
     margin-top: 1em;
     margin-bottom: 1em;
@@ -130,7 +114,6 @@
     margin-bottom: 0.5em;
   }
 
-  /* ③,④ プログレスバー共通スタイル */
   .progress-bar {
     height: 10px;
     width: 100%;
@@ -143,7 +126,7 @@
     background: #bda27e;
     width: 100%;
     border-radius: 6px;
-    transition: width 1s linear;
+    transition: width 0.5s linear;
   }
 </style>
 </head>
@@ -162,7 +145,6 @@
   <button onclick="resetSequence()">リセット</button>
 </div>
 
-<!-- ② 合計時間を入力欄のすぐ下に配置 -->
 <div id="totalWrapper">
   <div id="totalTime">合計時間：00:00</div>
   <div class="progress-bar"><div id="totalProgress" class="progress-fill"></div></div>
@@ -182,7 +164,6 @@ let startNumber = 1;
 let totalRemaining = 0;
 let totalInitial = 0;
 
-// ✅ iPad対策：AudioContextを初期化
 let audioCtx;
 function initAudio() {
   if (!audioCtx) {
@@ -203,12 +184,16 @@ function addTimer() {
   startNumber = parseInt(document.getElementById('startNumber').value) || 1;
   const total = min * 60 + sec;
   if (total <= 0) return;
-  timerCount++;
   const id = Date.now();
-  const timer = { id, total, remaining: total, label, number: startNumber + timerCount - 1 };
+  const timer = { id, total, remaining: total, label, number: startNumber + timers.length };
   timers.push(timer);
-  updateTotalTime();
+  updateNumbers();
+  updateTotalTime(true); // trueでリセット動作
   renderTimers();
+}
+
+function updateNumbers() {
+  timers.forEach((t, i) => t.number = i + startNumber);
 }
 
 function renderTimers() {
@@ -222,9 +207,20 @@ function renderTimers() {
     const header = document.createElement('div');
     header.className = 'timer-header';
 
-    const num = document.createElement('div');
-    num.className = 'timer-number';
-    num.textContent = t.number;
+    const numSelect = document.createElement('select');
+    numSelect.className = 'timer-number';
+    for (let n = startNumber; n < startNumber + timers.length; n++) {
+      const opt = document.createElement('option');
+      opt.value = n;
+      opt.textContent = n;
+      if (n === t.number) opt.selected = true;
+      numSelect.appendChild(opt);
+    }
+    numSelect.onchange = (e) => {
+      t.number = parseInt(e.target.value);
+      timers.sort((a,b)=>a.number-b.number);
+      renderTimers();
+    };
 
     const time = document.createElement('div');
     time.className = 'time';
@@ -237,15 +233,16 @@ function renderTimers() {
     const del = document.createElement('button');
     del.textContent = "❌";
     del.className = "delete-btn";
-    del.onclick = () => deleteTimer(t.id);
+    del.onclick = () => {
+      deleteTimer(t.id);
+    };
 
-    header.appendChild(num);
+    header.appendChild(numSelect);
     header.appendChild(time);
     header.appendChild(label);
     header.appendChild(del);
     div.appendChild(header);
 
-    // ④ タイマーごとの進行バー
     const bar = document.createElement('div');
     bar.className = 'progress-bar';
     const fill = document.createElement('div');
@@ -262,7 +259,8 @@ function renderTimers() {
 
 function deleteTimer(id) {
   timers = timers.filter(t => t.id !== id);
-  updateTotalTime();
+  updateNumbers();
+  updateTotalTime(true);
   renderTimers();
 }
 
@@ -313,7 +311,7 @@ function nextTimer() {
     running = false;
     document.getElementById('startBtn').textContent = "スタート";
     clearInterval(totalInterval);
-    updateTotalTime();
+    updateTotalTime(true);
     return;
   }
 
@@ -364,15 +362,15 @@ function resetSequence() {
   renderTimers();
 }
 
-// 🔢 合計時間計算と表示
-function updateTotalTime() {
+// ✅ 合計時間バー：追加時は常に満タンに戻す
+function updateTotalTime(reset=false) {
   totalRemaining = timers.reduce((sum, t) => sum + t.remaining, 0);
   document.getElementById('totalTime').textContent = "合計時間：" + formatTime(totalRemaining);
   const fill = document.getElementById('totalProgress');
-  if (totalInitial > 0) {
+  if (reset) {
+    fill.style.width = "100%";
+  } else if (totalInitial > 0) {
     fill.style.width = (totalRemaining / totalInitial * 100) + '%';
-  } else {
-    fill.style.width = "0%";
   }
 }
 
