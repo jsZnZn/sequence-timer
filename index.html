@@ -246,7 +246,7 @@ function renderTimers() {
 
 function formatTime(sec) {
   const m = Math.floor(sec / 60).toString().padStart(2, '0');
-  const s = (sec % 60).toString().padStart(2, '0');
+  const s = Math.floor(sec % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
 }
 
@@ -302,7 +302,6 @@ function nextTimer() {
     t.timeElement.textContent = formatTime(t.remaining);
     t.fillElement.style.width = (t.remaining / t.total * 100) + '%';
     updateTotalTime();
-    renderTimers();
     if (t.remaining > 0) requestAnimationFrame(tick);
     else {
       playBeep();
@@ -325,7 +324,6 @@ function continueTimer() {
     t.timeElement.textContent = formatTime(t.remaining);
     t.fillElement.style.width = (t.remaining / t.total * 100) + '%';
     updateTotalTime();
-    renderTimers();
     if (t.remaining > 0) requestAnimationFrame(tick);
     else {
       playBeep();
