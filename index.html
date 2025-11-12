@@ -15,6 +15,7 @@
     padding: 2em;
   }
   h1 { color: #5b4636; }
+
   input, button {
     font-size: 1em;
     margin: 0.3em;
@@ -31,25 +32,49 @@
   #startBtn { background: #bda27e; color: #fff; }
   #startBtn:hover { background: #a48c6b; }
 
-  #timers {
-    margin-top: 2em;
-    display: flex; flex-direction: column; align-items: center; gap: 1em;
-  }
-  .timer {
-    background: #fff; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    padding: 1em 2em; width: 80%; max-width: 500px;
-    display: flex; flex-direction: column;
-  }
-  .timer-header {
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .timer-number {
-    width: 4em;
+  label {
     font-weight: bold;
     color: #5b4636;
+    margin-right: 0.4em;
+  }
+
+  #timers {
+    margin-top: 2em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1em;
+  }
+  .timer {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 1em 2em;
+    width: 80%;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+  }
+  .timer.active {
+    background: #fff2d9;
+    transform: scale(1.15);
+    z-index: 2;
+  }
+
+  .timer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .timer-number {
+    font-size: 1.6em;
+    font-weight: bold;
+    color: #5b4636;
+    width: 2.5em;
     text-align: center;
   }
-  .time { font-size: 2.5em; font-weight: bold; color: #222; }
+  .time { font-size: 2.2em; font-weight: bold; color: #222; }
   .label { font-size: 1.2em; color: #555; }
   .delete-btn {
     background: #f0b7a4; color: #fff; border: none;
@@ -57,43 +82,30 @@
   }
   .delete-btn:hover { background: #e38b71; }
 
-  #totalWrapper { margin-top: 1em; margin-bottom: 1em; }
-  #totalTime {
-    font-size: 1.4em; color: #5b4636; font-weight: bold; margin-bottom: 0.5em;
-  }
   .progress-bar {
     height: 10px; width: 100%; background: #e0d6ca;
-    border-radius: 6px; overflow: hidden;
+    border-radius: 6px; overflow: hidden; margin-top: 0.6em;
   }
   .progress-fill {
     height: 100%; background: #bda27e; width: 100%;
     border-radius: 6px; transition: width 0.1s linear;
   }
 
-  /* 現在タイマーを大きく表示 */
-  #activeTimer {
-    background: #fff4e0;
-    border-radius: 12px;
-    padding: 1em;
-    margin: 1em auto;
-    width: 90%;
-    max-width: 600px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  #totalWrapper { margin-top: 1em; margin-bottom: 1em; }
+  #totalTime {
+    font-size: 1.4em; color: #5b4636; font-weight: bold; margin-bottom: 0.5em;
   }
-  #activeLabel { font-size: 1.4em; color: #5b4636; margin-bottom: 0.5em; }
-  #activeTime { font-size: 4em; color: #222; font-weight: bold; }
-  #activeBar { height: 14px; background: #e0d6ca; border-radius: 6px; overflow: hidden; }
-  #activeFill { height: 100%; width: 100%; background: #bda27e; transition: width 0.1s linear; }
 </style>
 </head>
 <body>
 <h1>⏱️ 自動シーケンスタイマー</h1>
 
 <div>
+  <label for="startNumber">開始番号：</label>
+  <input type="number" id="startNumber" min="1" value="1" style="width:5em;">
   <input type="number" id="minutes" placeholder="分" min="0" style="width:5em;">
   <input type="number" id="seconds" placeholder="秒" min="0" max="59" style="width:5em;">
   <input type="text" id="label" placeholder="ラベル (任意)" style="width:10em;">
-  <input type="number" id="startNumber" min="1" value="1" style="width:5em;" placeholder="開始番号">
   <button onclick="addTimer()">追加</button>
   <button id="startBtn" onclick="toggleStartPause()">スタート</button>
   <button onclick="resetSequence()">リセット</button>
@@ -104,13 +116,6 @@
   <div class="progress-bar"><div id="totalProgress" class="progress-fill"></div></div>
 </div>
 
-<!-- 現在タイマーの特大表示 -->
-<div id="activeTimer" style="display:none;">
-  <div id="activeLabel"></div>
-  <div id="activeTime">00:00</div>
-  <div id="activeBar"><div id="activeFill"></div></div>
-</div>
-
 <div id="timers"></div>
 
 <script>
@@ -118,29 +123,27 @@ let timers = [];
 let current = 0;
 let running = false;
 let paused = false;
-let totalInterval;
-let startNumber = 1;
-let totalRemaining = 0;
+let timerCount = 0;
 let totalInitial = 0;
-
+let totalRemaining = 0;
 let audioCtx;
+
 function initAudio() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain).connect(audioCtx.destination);
-    gain.gain.value = 0;
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.01);
+    const buffer = audioCtx.createBuffer(1, 1, 22050);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start(0);
   }
 }
 
 function addTimer() {
-  const min = +document.getElementById('minutes').value || 0;
-  const sec = +document.getElementById('seconds').value || 0;
+  const min = parseInt(document.getElementById('minutes').value) || 0;
+  const sec = parseInt(document.getElementById('seconds').value) || 0;
   const label = document.getElementById('label').value || '';
-  startNumber = +document.getElementById('startNumber').value || 1;
+  const startNumber = parseInt(document.getElementById('startNumber').value) || 1;
   const total = min * 60 + sec;
   if (total <= 0) return;
   const id = Date.now();
@@ -152,19 +155,17 @@ function addTimer() {
 function renderTimers() {
   const container = document.getElementById('timers');
   container.innerHTML = '';
-  timers.forEach(t => {
+  timers.forEach((t, i) => {
     const div = document.createElement('div');
     div.className = 'timer';
+    if (i === 0 && running && !paused) div.classList.add('active');
 
     const header = document.createElement('div');
     header.className = 'timer-header';
 
-    const numInput = document.createElement('input');
-    numInput.type = 'number';
-    numInput.className = 'timer-number';
-    numInput.value = t.number;
-    numInput.disabled = running && !paused;
-    numInput.oninput = e => { t.number = +e.target.value; };
+    const num = document.createElement('div');
+    num.className = 'timer-number';
+    num.textContent = t.number;
 
     const time = document.createElement('div');
     time.className = 'time';
@@ -179,7 +180,7 @@ function renderTimers() {
     del.className = "delete-btn";
     del.onclick = () => deleteTimer(t.id);
 
-    header.append(numInput, time, label, del);
+    header.append(num, time, label, del);
     div.append(header);
 
     const bar = document.createElement('div');
@@ -190,18 +191,14 @@ function renderTimers() {
     bar.append(fill);
     div.append(bar);
 
-    t.fillElement = fill;
     t.timeElement = time;
-
+    t.fillElement = fill;
     container.append(div);
   });
 }
 
 function deleteTimer(id) {
-  const deletingIndex = timers.findIndex(t => t.id === id);
-  const deletingActive = (deletingIndex === current && running && !paused);
   timers = timers.filter(t => t.id !== id);
-  if (deletingActive) nextTimer(); // 現在のを削除したら即次へ
   updateTotalTime(true);
   renderTimers();
 }
@@ -221,7 +218,7 @@ function playBeep() {
   gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
   osc.connect(gain).connect(audioCtx.destination);
   osc.start();
-  osc.stop(audioCtx.currentTime + 0.5);
+  osc.stop(audioCtx.currentTime + 1);
 }
 
 function toggleStartPause() {
@@ -233,7 +230,6 @@ function toggleStartPause() {
     current = 0;
     totalInitial = timers.reduce((s, t) => s + t.remaining, 0);
     nextTimer();
-    startTotalCountdown();
   } else if (!paused) {
     paused = true;
     btn.textContent = "▶️ 再開";
@@ -249,16 +245,12 @@ function nextTimer() {
   if (current >= timers.length) {
     running = false;
     document.getElementById('startBtn').textContent = "スタート";
-    document.getElementById('activeTimer').style.display = 'none';
     return;
   }
 
   const t = timers[current];
-  document.getElementById('activeTimer').style.display = 'block';
-  document.getElementById('activeLabel').textContent = `#${t.number} ${t.label}`;
-  const activeTime = document.getElementById('activeTime');
-  const activeFill = document.getElementById('activeFill');
-  activeFill.style.width = '100%';
+  renderTimers();
+  scrollToActive();
 
   const start = Date.now();
   const startRemaining = t.remaining;
@@ -268,11 +260,10 @@ function nextTimer() {
     if (!running || paused) return;
     const elapsed = (Date.now() - start) / 1000;
     t.remaining = Math.max(0, startRemaining - elapsed);
-    activeTime.textContent = formatTime(t.remaining);
-    activeFill.style.width = (t.remaining / t.total * 100) + '%';
     t.timeElement.textContent = formatTime(t.remaining);
-    if (t.fillElement) t.fillElement.style.width = (t.remaining / t.total * 100) + '%';
+    t.fillElement.style.width = (t.remaining / t.total * 100) + '%';
     updateTotalTime();
+
     if (t.remaining > 0) {
       requestAnimationFrame(tick);
     } else {
@@ -285,15 +276,6 @@ function nextTimer() {
   requestAnimationFrame(tick);
 }
 
-function resetSequence() {
-  running = false; paused = false; current = 0; timers = [];
-  document.getElementById('startBtn').textContent = "スタート";
-  document.getElementById('totalTime').textContent = "合計時間：00:00";
-  document.getElementById('totalProgress').style.width = "100%";
-  document.getElementById('activeTimer').style.display = 'none';
-  renderTimers();
-}
-
 function updateTotalTime(reset=false) {
   totalRemaining = timers.reduce((s, t) => s + t.remaining, 0);
   document.getElementById('totalTime').textContent = "合計時間：" + formatTime(totalRemaining);
@@ -302,13 +284,18 @@ function updateTotalTime(reset=false) {
   else if (totalInitial > 0) fill.style.width = (totalRemaining / totalInitial * 100) + '%';
 }
 
-function startTotalCountdown() {
-  clearInterval(totalInterval);
-  totalInterval = setInterval(() => {
-    if (!running || paused || totalRemaining <= 0) return;
-    totalRemaining--;
-    updateTotalTime();
-  }, 1000);
+function scrollToActive() {
+  const container = document.getElementById('timers');
+  const active = container.querySelector('.active');
+  if (active) container.prepend(active);
+}
+
+function resetSequence() {
+  running = false; paused = false; current = 0; timers = [];
+  document.getElementById('startBtn').textContent = "スタート";
+  document.getElementById('totalTime').textContent = "合計時間：00:00";
+  document.getElementById('totalProgress').style.width = "100%";
+  renderTimers();
 }
 </script>
 </body>
