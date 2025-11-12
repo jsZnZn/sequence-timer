@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>自動シーケンスタイマー</title>
-  <link rel="icon" href="favicon.png" type="image/png">
+<link rel="icon" href="favicon.png" type="image/png">
 
 <style>
   body {
@@ -33,7 +33,6 @@
   button:hover {
     background: #d1c0a8;
   }
-  /* スタート・一時停止ボタン専用の色 */
   #startBtn {
     background: #bda27e;
     color: #fff;
@@ -41,7 +40,6 @@
   #startBtn:hover {
     background: #a48c6b;
   }
-
   #timers {
     margin-top: 2em;
     display: flex;
@@ -92,6 +90,23 @@
   .timer.active .label {
     font-size: 1.8em;
   }
+  .delete-btn {
+    background: #f0b7a4;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.3em 0.6em;
+    cursor: pointer;
+  }
+  .delete-btn:hover {
+    background: #e38b71;
+  }
+  #totalTime {
+    margin-top: 1.5em;
+    font-size: 1.4em;
+    color: #5b4636;
+    font-weight: bold;
+  }
 </style>
 </head>
 <body>
@@ -100,11 +115,14 @@
   <input type="number" id="minutes" placeholder="分" min="0" style="width:5em;">
   <input type="number" id="seconds" placeholder="秒" min="0" max="59" style="width:5em;">
   <input type="text" id="label" placeholder="ラベル (任意)" style="width:10em;">
+  <input type="number" id="startNumber" placeholder="開始番号" min="1" value="1" style="width:6em;">
   <button onclick="addTimer()">追加</button>
   <button id="startBtn" onclick="toggleStartPause()">スタート</button>
   <button onclick="resetSequence()">リセット</button>
 </div>
+
 <div id="timers"></div>
+<div id="totalTime">合計時間：00:00</div>
 
 <script>
 let timers = [];
@@ -112,18 +130,37 @@ let current = 0;
 let running = false;
 let paused = false;
 let interval;
+let totalInterval;
 let timerCount = 0;
+let startNumber = 1;
+let totalRemaining = 0;
+
+// ✅ iPad対策：AudioContextを初期化
+let audioCtx;
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain).connect(audioCtx.destination);
+    gain.gain.value = 0;
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.01);
+  }
+}
 
 function addTimer() {
   const min = parseInt(document.getElementById('minutes').value) || 0;
   const sec = parseInt(document.getElementById('seconds').value) || 0;
   const label = document.getElementById('label').value || '';
+  startNumber = parseInt(document.getElementById('startNumber').value) || 1;
   const total = min * 60 + sec;
   if (total <= 0) return;
   timerCount++;
   const id = Date.now();
-  const timer = { id, total, remaining: total, label, number: timerCount };
+  const timer = { id, total, remaining: total, label, number: startNumber + timerCount - 1 };
   timers.push(timer);
+  updateTotalTime();
   renderTimers();
 }
 
@@ -147,11 +184,23 @@ function renderTimers() {
     label.className = 'label';
     label.textContent = t.label;
 
+    const del = document.createElement('button');
+    del.textContent = "❌";
+    del.className = "delete-btn";
+    del.onclick = () => deleteTimer(t.id);
+
     div.appendChild(num);
     div.appendChild(time);
     div.appendChild(label);
+    div.appendChild(del);
     container.appendChild(div);
   });
+}
+
+function deleteTimer(id) {
+  timers = timers.filter(t => t.id !== id);
+  updateTotalTime();
+  renderTimers();
 }
 
 function formatTime(sec) {
@@ -161,33 +210,37 @@ function formatTime(sec) {
 }
 
 function playBeep() {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
   osc.type = 'square';
-  osc.frequency.setValueAtTime(880, ctx.currentTime);
-  gain.gain.setValueAtTime(0.2, ctx.currentTime);
-  osc.connect(gain).connect(ctx.destination);
+  osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+  osc.connect(gain).connect(audioCtx.destination);
   osc.start();
-  osc.stop(ctx.currentTime + 1);
+  osc.stop(audioCtx.currentTime + 1);
 }
 
 function toggleStartPause() {
+  initAudio();
   const btn = document.getElementById('startBtn');
   if (!running) {
     running = true;
     paused = false;
     btn.textContent = "⏸ 一時停止";
-    current = 0; // ← 最初からスタート
+    current = 0;
     nextTimer();
+    startTotalCountdown();
   } else if (!paused) {
     paused = true;
     clearInterval(interval);
+    clearInterval(totalInterval);
     btn.textContent = "▶️ 再開";
   } else {
     paused = false;
     btn.textContent = "⏸ 一時停止";
     continueTimer();
+    startTotalCountdown();
   }
 }
 
@@ -195,6 +248,8 @@ function nextTimer() {
   if (current >= timers.length) {
     running = false;
     document.getElementById('startBtn').textContent = "スタート";
+    clearInterval(totalInterval);
+    updateTotalTime();
     return;
   }
 
@@ -205,15 +260,14 @@ function nextTimer() {
   interval = setInterval(() => {
     if (!running || paused) return;
     t.remaining--;
+    updateTotalTime();
     renderTimers();
     scrollToActive();
 
     if (t.remaining <= 0) {
       clearInterval(interval);
       playBeep();
-      // タイムアップしたタイマーを削除
       timers.splice(current, 1);
-      // 次へ（同じindex位置に次の要素が来る）
       nextTimer();
     }
   }, 1000);
@@ -224,6 +278,7 @@ function continueTimer() {
   interval = setInterval(() => {
     if (!running || paused) return;
     t.remaining--;
+    updateTotalTime();
     renderTimers();
     scrollToActive();
 
@@ -244,15 +299,31 @@ function scrollToActive() {
 
 function resetSequence() {
   clearInterval(interval);
+  clearInterval(totalInterval);
   running = false;
   paused = false;
   current = 0;
   timerCount = 0;
   timers = [];
   document.getElementById('startBtn').textContent = "スタート";
+  document.getElementById('totalTime').textContent = "合計時間：00:00";
   renderTimers();
+}
+
+// 🔢 合計時間計算と表示
+function updateTotalTime() {
+  totalRemaining = timers.reduce((sum, t) => sum + t.remaining, 0);
+  document.getElementById('totalTime').textContent = "合計時間：" + formatTime(totalRemaining);
+}
+
+function startTotalCountdown() {
+  clearInterval(totalInterval);
+  totalInterval = setInterval(() => {
+    if (!running || paused || totalRemaining <= 0) return;
+    totalRemaining--;
+    document.getElementById('totalTime').textContent = "合計時間：" + formatTime(totalRemaining);
+  }, 1000);
 }
 </script>
 </body>
 </html>
-
