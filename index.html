@@ -1,169 +1,376 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>シーケンスタイマー</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      background: #f9f9f9;
-      color: #333;
-      margin: 0;
-      padding: 0;
-    }
-    h1 {
-      margin-top: 20px;
-    }
-    #inputs {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      margin: 20px;
-    }
-    input {
-      width: 80px;
-      padding: 5px;
-      text-align: center;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      background: #4caf50;
-      color: white;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #45a049;
-    }
-    #totalTime {
-      font-size: 24px;
-      margin: 10px;
-      font-weight: bold;
-    }
-    .bar {
-      height: 10px;
-      border-radius: 5px;
-      background-color: #ccc;
-      overflow: hidden;
-      width: 80%;
-      margin: 10px auto;
-    }
-    .bar-fill {
-      height: 100%;
-      width: 100%;
-      background-color: #4caf50;
-      transition: width 0.1s linear;
-    }
-    .timer {
-      margin: 15px 0;
-      font-size: 20px;
-    }
-    .active {
-      font-size: 28px;
-      font-weight: bold;
-      color: #4caf50;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自動シーケンスタイマー</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #f4f1ee;
+    color: #333;
+    text-align: center;
+    margin: 0;
+    padding: 2em;
+  }
+  h1 {
+    color: #5b4636;
+  }
+  .input-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5em;
+    margin-bottom: 1em;
+  }
+  .input-row label {
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+  }
+  input, button {
+    font-size: 1em;
+    margin: 0.3em;
+    padding: 0.4em 0.8em;
+    border: none;
+    border-radius: 6px;
+  }
+  button {
+    background: #e0d6ca;
+    color: #333;
+    transition: background 0.3s;
+  }
+  button:hover {
+    background: #d1c0a8;
+  }
+  #startBtn {
+    background: #bda27e;
+    color: #fff;
+  }
+  #startBtn:hover {
+    background: #a48c6b;
+  }
+
+  #totalWrapper {
+    margin-top: 1em;
+    margin-bottom: 1em;
+    width: 80%;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  #totalTime {
+    font-size: 1.2em;
+    color: #5b4636;
+    font-weight: bold;
+    margin-bottom: 0.3em;
+    text-align: left;
+  }
+  .progress-bar {
+    height: 12px;
+    width: 100%;
+    background: #e0d6ca;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 100%;
+    background: #bda27e;
+    transition: width 0.1s linear;
+  }
+
+  #timers {
+    margin-top: 2em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1em;
+  }
+  .timer {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 1em 2em;
+    width: 80%;
+    max-width: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+    flex-direction: column;
+  }
+  .timer-number {
+    font-size: 2em;
+    font-weight: bold;
+    color: #5b4636;
+    margin-bottom: 0.3em;
+    transition: font-size 0.3s;
+  }
+  .timer.active {
+    background: #d1c0a8;
+  }
+  .timer.active .timer-number {
+    font-size: 3.5em;
+  }
+  .time {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #222;
+    transition: font-size 0.3s, padding 0.3s;
+  }
+  .timer.active .time {
+    font-size: 5em;
+  }
+  .label {
+    font-size: 1.2em;
+    color: #555;
+    align-self: flex-start;
+    transition: font-size 0.3s;
+    margin-bottom: 0.3em;
+  }
+  .timer.active .label {
+    font-size: 1.8em;
+  }
+  .delete-btn {
+    background: #f0b7a4;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.3em 0.6em;
+    cursor: pointer;
+  }
+  .delete-btn:hover {
+    background: #e38b71;
+  }
+  .progress-bar-timer {
+    height: 10px;
+    width: 100%;
+    background: #e0d6ca;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .progress-fill-timer {
+    height: 100%;
+    width: 100%;
+    background: #bda27e;
+    transition: width 0.1s linear;
+  }
+</style>
 </head>
 <body>
-  <h1>シーケンスタイマー</h1>
+<h1>⏱️ 自動シーケンスタイマー</h1>
 
-  <div id="inputs">
-    <label>開始番号: <input type="number" id="startNumber" value="1"></label>
-    <label>回数: <input type="number" id="count" value="3"></label>
-    <label>各タイマー(秒): <input type="number" id="duration" value="5"></label>
-  </div>
+<div class="input-row">
+  <input type="number" id="minutes" placeholder="分" min="0" style="width:5em;">
+  <input type="number" id="seconds" placeholder="秒" min="0" max="59" style="width:5em;">
+  <label>開始番号 <input type="number" id="startNumber" min="1" value="1" style="width:5em;"></label>
+  <input type="text" id="label" placeholder="ラベル (任意)" style="width:10em;">
+  <button onclick="addTimer()">追加</button>
+  <button id="startBtn" onclick="toggleStartPause()">スタート</button>
+  <button onclick="resetSequence()">リセット</button>
+</div>
 
-  <button id="startButton">開始</button>
+<div id="totalWrapper">
+  <div id="totalTime">合計時間：00:00</div>
+  <div class="progress-bar"><div id="totalProgress" class="progress-fill"></div></div>
+</div>
 
-  <div id="totalTime">合計時間: 0 秒</div>
-  <div class="bar"><div class="bar-fill" id="totalBar"></div></div>
+<div id="timers"></div>
 
-  <div id="timers"></div>
+<script>
+let timers = [];
+let current = 0;
+let running = false;
+let paused = false;
+let interval;
+let timerCount = 0;
+let totalRemaining = 0;
+let totalInitial = 0;
+let startNumberValue = 1;
+let audioCtx = null; // ←★追加
 
-  <audio id="beep" src="beep.mp3" preload="auto"></audio>
+function initAudio() { // ←★追加
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
 
-  <script>
-    const startButton = document.getElementById("startButton");
-    const totalBar = document.getElementById("totalBar");
-    const beep = document.getElementById("beep");
-    let totalDuration = 0;
-    let totalStart = 0;
+function addTimer() {
+  const min = parseInt(document.getElementById('minutes').value) || 0;
+  const sec = parseInt(document.getElementById('seconds').value) || 0;
+  const label = document.getElementById('label').value || '';
+  startNumberValue = parseInt(document.getElementById('startNumber').value) || 1;
+  const total = min * 60 + sec;
+  if (total <= 0) return;
+  timerCount++;
+  const id = Date.now();
+  const timer = { id, total, remaining: total, label, number: startNumberValue + timers.length };
+  timers.push(timer);
+  updateTotalTime(true);
+  renderTimers();
+}
 
-    // ✅ iPad用：最初のクリックで音再生を許可
-    startButton.addEventListener("click", () => {
-      const silentAudio = new Audio("beep.mp3");
-      silentAudio.volume = 0.001;
-      silentAudio.play().then(() => {
-        silentAudio.pause();
-        silentAudio.currentTime = 0;
-      });
-    }, { once: true });
+function renderTimers() {
+  const container = document.getElementById('timers');
+  container.innerHTML = '';
+  timers.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.className = 'timer';
+    if (i === current && running && !paused) div.classList.add('active');
 
-    startButton.addEventListener("click", async () => {
-      const startNum = parseInt(document.getElementById("startNumber").value);
-      const count = parseInt(document.getElementById("count").value);
-      const duration = parseInt(document.getElementById("duration").value);
-      const timersDiv = document.getElementById("timers");
-      timersDiv.innerHTML = "";
+    const num = document.createElement('div');
+    num.className = 'timer-number';
+    num.textContent = t.number;
 
-      totalDuration = count * duration;
-      totalStart = Date.now();
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = t.label;
 
-      document.getElementById("totalTime").textContent = `合計時間: ${totalDuration} 秒`;
+    const time = document.createElement('div');
+    time.className = 'time';
+    time.textContent = formatTime(Math.ceil(t.remaining));
 
-      // タイマー要素を作成
-      for (let i = 0; i < count; i++) {
-        const tDiv = document.createElement("div");
-        tDiv.className = "timer";
-        tDiv.innerHTML = `
-          <div id="timer${i}">${startNum + i}：${duration} 秒</div>
-          <div class="bar"><div class="bar-fill" id="bar${i}"></div></div>
-        `;
-        timersDiv.appendChild(tDiv);
+    const del = document.createElement('button');
+    del.textContent = "❌";
+    del.className = "delete-btn";
+    del.onclick = () => {
+      timers = timers.filter(tt => tt.id !== t.id);
+      if (i === current && running && !paused) {
+        nextTimer();
+      } else {
+        updateTotalTime();
+        renderTimers();
       }
+    };
+    if (running && !paused) del.style.display = 'none';
 
-      // 各タイマー実行
-      for (let i = 0; i < count; i++) {
-        const thisTimer = document.getElementById(`timer${i}`);
-        const thisBar = document.getElementById(`bar${i}`);
-        thisTimer.classList.add("active");
+    const bar = document.createElement('div');
+    bar.className = 'progress-bar-timer';
+    const fill = document.createElement('div');
+    fill.className = 'progress-fill-timer';
+    fill.style.width = (t.remaining / t.total * 100) + '%';
+    bar.appendChild(fill);
+    t.fillElement = fill;
 
-        let remaining = duration;
-        let startTime = Date.now();
+    div.appendChild(num);
+    div.appendChild(label);
+    div.appendChild(time);
+    div.appendChild(bar);
+    div.appendChild(del);
 
-        await new Promise(resolve => {
-          const interval = setInterval(() => {
-            const elapsed = (Date.now() - startTime) / 1000;
-            remaining = Math.max(duration - elapsed, 0);
-            thisTimer.textContent = `${startNum + i}：${Math.ceil(remaining)} 秒`;
+    container.appendChild(div);
+    t.timeElement = time;
+  });
+}
 
-            const progress = (remaining / duration) * 100;
-            thisBar.style.width = `${progress}%`;
+function formatTime(sec) {
+  const m = Math.floor(sec / 60).toString().padStart(2, '0');
+  const s = Math.floor(sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
 
-            const totalElapsed = (Date.now() - totalStart) / 1000;
-            const totalRemaining = Math.max(totalDuration - totalElapsed, 0);
-            totalBar.style.width = `${(totalRemaining / totalDuration) * 100}%`;
+function playBeep() {
+  if (!audioCtx) return; // ←★変更
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 1);
+}
 
-            document.getElementById("totalTime").textContent =
-              `合計時間: ${Math.ceil(totalRemaining)} 秒`;
+function toggleStartPause() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  // iOS向けに AudioContext をユーザー操作で resume
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
 
-            if (remaining <= 0) {
-              clearInterval(interval);
-              beep.currentTime = 0;
-              beep.play();
-              thisTimer.classList.remove("active");
-              resolve();
-            }
-          }, 100);
-        });
-      }
-    });
-  </script>
+  const btn = document.getElementById('startBtn');
+  if (!running) {
+    running = true;
+    paused = false;
+    current = 0;
+    btn.textContent = "⏸ 一時停止";
+    totalInitial = timers.reduce((s,t)=>s+t.remaining,0);
+    nextTimer();
+  } else if (!paused) {
+    paused = true;
+    btn.textContent = "▶️ 再開";
+    clearInterval(interval);
+  } else {
+    paused = false;
+    btn.textContent = "⏸ 一時停止";
+    continueTimer();
+  }
+}
+
+function nextTimer() {
+  if (current >= timers.length) {
+    running = false;
+    document.getElementById('startBtn').textContent = "スタート";
+    return;
+  }
+
+  const t = timers[current];
+  renderTimers();
+  animateTimer(t);
+}
+
+function continueTimer() {
+  if (current < timers.length) {
+    const t = timers[current];
+    animateTimer(t);
+  }
+}
+
+function animateTimer(t) {
+  const start = performance.now();
+  const duration = t.remaining * 1000;
+  const initialRemaining = t.remaining;
+
+  function step(now) {
+    if (!running || paused) return;
+    const elapsed = (now - start) / 1000;
+    t.remaining = Math.max(0, initialRemaining - elapsed);
+    t.timeElement.textContent = formatTime(Math.ceil(t.remaining));
+    if (t.fillElement) t.fillElement.style.width = (t.remaining / t.total * 100) + '%';
+    updateTotalTime();
+    if (t.remaining > 0) {
+      requestAnimationFrame(step);
+    } else {
+      playBeep();
+      timers.splice(current, 1);
+      nextTimer();
+      renderTimers();
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+function updateTotalTime(reset=false) {
+  totalRemaining = timers.reduce((s,t)=>s+t.remaining,0);
+  document.getElementById('totalTime').textContent = "合計時間：" + formatTime(Math.ceil(totalRemaining));
+  const fill = document.getElementById('totalProgress');
+  if (reset) fill.style.width = "100%";
+  else fill.style.width = (totalRemaining / totalInitial * 100) + '%';
+}
+
+function resetSequence() {
+  running = false;
+  paused = false;
+  current = 0;
+  timerCount = 0;
+  timers = [];
+  document.getElementById('startBtn').textContent = "スタート";
+  updateTotalTime(true);
+  renderTimers();
+}
+</script>
 </body>
 </html>
