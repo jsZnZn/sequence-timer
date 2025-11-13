@@ -188,6 +188,13 @@ let timerCount = 0;
 let totalRemaining = 0;
 let totalInitial = 0;
 let startNumberValue = 1;
+let audioCtx = null; // ←★追加
+
+function initAudio() { // ←★追加
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
 
 function addTimer() {
   const min = parseInt(document.getElementById('minutes').value) || 0;
@@ -264,18 +271,20 @@ function formatTime(sec) {
 }
 
 function playBeep() {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+  if (!audioCtx) return; // ←★変更
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
   osc.type = 'square';
-  osc.frequency.setValueAtTime(880, ctx.currentTime);
-  gain.gain.setValueAtTime(0.2, ctx.currentTime);
-  osc.connect(gain).connect(ctx.destination);
+  osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+  osc.connect(gain).connect(audioCtx.destination);
   osc.start();
-  osc.stop(ctx.currentTime + 1);
+  osc.stop(audioCtx.currentTime + 1);
 }
 
 function toggleStartPause() {
+  initAudio(); // ←★追加：最初にAudioContextを初期化
+
   const btn = document.getElementById('startBtn');
   if (!running) {
     running = true;
@@ -305,7 +314,6 @@ function nextTimer() {
   const t = timers[current];
   renderTimers();
   animateTimer(t);
-
 }
 
 function continueTimer() {
